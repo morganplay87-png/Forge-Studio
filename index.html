@@ -69,6 +69,10 @@ button {
     cursor:pointer;
 }
 
+button:hover {
+    background:#1d4ed8;
+}
+
 .file {
     padding:6px;
     margin:3px;
@@ -90,6 +94,142 @@ button {
     padding:4px;
     cursor:pointer;
 }
+
+/* FORGE AI STYLES */
+#forgeAiButton {
+    background:#7c3aed;
+    padding:8px 12px;
+    margin:5px 0;
+    font-weight:bold;
+    transition:all 0.3s;
+}
+
+#forgeAiButton:hover {
+    background:#6d28d9;
+}
+
+#forgeAiButton.active {
+    background:#a78bfa;
+}
+
+#forgeAiPanel {
+    display:none;
+    position:absolute;
+    right:0;
+    top:0;
+    width:300px;
+    height:100%;
+    background:#0f172a;
+    border-left:2px solid #7c3aed;
+    z-index:10;
+    flex-direction:column;
+}
+
+#forgeAiPanel.open {
+    display:flex;
+}
+
+#forgeAiPanel h3 {
+    margin:10px 10px 5px 10px;
+    color:#a78bfa;
+    border-bottom:1px solid #7c3aed;
+    padding-bottom:5px;
+}
+
+#forgeAiPanel .ai-section {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:10px;
+    border-bottom:1px solid #1f2a44;
+}
+
+#forgeAiPrompt {
+    flex:1;
+    background:#0a0f1d;
+    color:#fff;
+    border:1px solid #1f2a44;
+    padding:8px;
+    font-family:monospace;
+    font-size:12px;
+    resize:none;
+    margin-bottom:8px;
+}
+
+#forgeAiResponse {
+    flex:1;
+    background:#0a0f1d;
+    color:#22c55e;
+    border:1px solid #1f2a44;
+    padding:8px;
+    font-family:monospace;
+    font-size:11px;
+    overflow:auto;
+    margin-bottom:8px;
+}
+
+.ai-actions {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px;
+    margin:5px 0;
+}
+
+.ai-action-btn {
+    padding:8px 6px;
+    font-size:12px;
+    background:#1e293b;
+    color:#7c3aed;
+    border:1px solid #7c3aed;
+    cursor:pointer;
+    transition:all 0.2s;
+}
+
+.ai-action-btn:hover {
+    background:#7c3aed;
+    color:white;
+}
+
+#forgeAiClose {
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:#7c3aed;
+    border:none;
+    color:white;
+    width:24px;
+    height:24px;
+    padding:0;
+    cursor:pointer;
+    font-size:16px;
+    line-height:1;
+}
+
+.loading {
+    opacity:0.6;
+    cursor:not-allowed;
+}
+
+.loading::after {
+    content:" ...";
+    animation:dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content:" "; }
+    40% { content:"."; }
+    60% { content:".."; }
+    80%, 100% { content:"..."; }
+}
+
+#editorWrap {
+    position:relative;
+    flex:1;
+}
+
+#editorWrap.ai-open {
+    margin-right:300px;
+}
 </style>
 </head>
 
@@ -103,6 +243,7 @@ button {
 <button onclick="newFile()">New</button>
 <button onclick="saveProject()">Save</button>
 <button onclick="loadProject()">Load</button>
+<button id="forgeAiButton" onclick="toggleForgeAiPanel()">🤖 Forge AI</button>
 <div id="files"></div>
 </div>
 
@@ -117,6 +258,34 @@ button {
 <div id="editorWrap">
     <div id="highlight"></div>
     <textarea id="code"></textarea>
+    
+    <!-- FORGE AI PANEL -->
+    <div id="forgeAiPanel">
+        <button id="forgeAiClose" onclick="toggleForgeAiPanel()">✕</button>
+        
+        <h3>Forge AI</h3>
+        
+        <div class="ai-section">
+            <label style="font-size:12px; margin-bottom:5px;">Your Prompt:</label>
+            <textarea id="forgeAiPrompt" placeholder="Ask AI to modify, explain, or generate code..."></textarea>
+            <button onclick="forgeAI.sendPrompt()" style="background:#7c3aed; width:100%;">Send to AI</button>
+        </div>
+        
+        <div class="ai-section">
+            <label style="font-size:12px; margin-bottom:5px;">AI Response:</label>
+            <div id="forgeAiResponse">Ready for AI responses...</div>
+        </div>
+        
+        <div style="padding:10px; border-top:1px solid #1f2a44;">
+            <label style="font-size:12px; display:block; margin-bottom:8px;">Quick Actions:</label>
+            <div class="ai-actions">
+                <button class="ai-action-btn" onclick="forgeAI.fixCode()">Fix Code</button>
+                <button class="ai-action-btn" onclick="forgeAI.explainCode()">Explain</button>
+                <button class="ai-action-btn" onclick="forgeAI.optimizeCode()">Optimize</button>
+                <button class="ai-action-btn" onclick="forgeAI.insertGenerated()">Insert Gen</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="output">Output...</div>
@@ -125,7 +294,7 @@ button {
 
 <!-- RIGHT -->
 <div id="right" class="panel">
-<h3>AI</h3>
+<h3>Debug</h3>
 <button onclick="mode='assist'">Assist</button>
 <button onclick="mode='plan'">Plan</button>
 <button onclick="ai()">Run</button>
@@ -136,6 +305,7 @@ button {
 
 </div>
 
+<script src="ai-plugin.js"></script>
 <script>
 
 /* ================= SAFE STATE ================= */
@@ -329,7 +499,18 @@ document.getElementById("code").addEventListener("input", e=>{
         s.map(x=>`<div>${x}</div>`).join("");
 });
 
-/* ================= AI ================= */
+/* ================= FORGE AI PANEL TOGGLE ================= */
+function toggleForgeAiPanel(){
+    let panel = document.getElementById("forgeAiPanel");
+    let btn = document.getElementById("forgeAiButton");
+    let wrap = document.getElementById("editorWrap");
+    
+    panel.classList.toggle("open");
+    btn.classList.toggle("active");
+    wrap.classList.toggle("ai-open");
+}
+
+/* ================= AI (LEGACY) ================= */
 function ai(){
     let t = parse(tokenize(document.getElementById("code").value));
 
