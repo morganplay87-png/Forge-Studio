@@ -2,530 +2,889 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Forge IDE V7 (Stable)</title>
+<title>Forge Studio - Game IDE</title>
 
 <style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
-    margin:0;
-    font-family:Arial;
-    background:#0b1220;
-    color:white;
-    overflow:hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0b1220;
+    color: white;
+    overflow: hidden;
 }
 
 #app {
-    display:flex;
-    height:100vh;
+    display: flex;
+    height: 100vh;
 }
 
 .panel {
-    background:#0f172a;
-    border:1px solid #1f2a44;
-    overflow:auto;
+    background: #0f172a;
+    border: 1px solid #1f2a44;
+    overflow: auto;
 }
 
-#left { width:220px; padding:10px; }
-#center { flex:1; display:flex; flex-direction:column; }
-#right { width:260px; padding:10px; }
+#left {
+    width: 220px;
+    padding: 10px;
+    border-right: 1px solid #1f2a44;
+}
+
+#center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#right {
+    width: 300px;
+    padding: 10px;
+    border-left: 1px solid #1f2a44;
+}
+
+.toolbar {
+    padding: 8px;
+    background: #111a2e;
+    border-bottom: 1px solid #1f2a44;
+    display: flex;
+    gap: 5px;
+}
+
+#editorContainer {
+    flex: 1;
+    display: flex;
+    position: relative;
+}
 
 #editorWrap {
-    position:relative;
-    flex:1;
+    position: relative;
+    flex: 1;
+    overflow: hidden;
 }
 
-/* SAFE HIGHLIGHT LAYER */
 #highlight {
-    position:absolute;
-    width:100%;
-    height:100%;
-    padding:10px;
-    font-family:monospace;
-    background:#0a0f1d;
-    white-space:pre-wrap;
-    overflow:auto;
-    z-index:1;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    background: #0a0f1d;
+    white-space: pre-wrap;
+    overflow: auto;
+    z-index: 1;
+    color: transparent;
 }
 
-textarea {
-    position:absolute;
-    width:100%;
-    height:100%;
-    padding:10px;
-    font-family:monospace;
-    background:transparent;
-    color:transparent;
-    caret-color:white;
-    border:none;
-    outline:none;
-    z-index:2;
+#code {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    background: transparent;
+    color: transparent;
+    caret-color: white;
+    border: none;
+    outline: none;
+    z-index: 2;
+    resize: none;
 }
 
-button {
-    background:#2563eb;
-    color:white;
-    border:none;
-    padding:6px;
-    margin:2px;
-    cursor:pointer;
-}
-
-button:hover {
-    background:#1d4ed8;
-}
-
-.file {
-    padding:6px;
-    margin:3px;
-    background:#1b2a4a;
-    cursor:pointer;
+#gameCanvas {
+    flex: 1;
+    background: #050a14;
+    border-left: 1px solid #1f2a44;
 }
 
 #output {
-    height:120px;
-    background:#0a0f1d;
-    padding:8px;
-    font-family:monospace;
-    overflow:auto;
+    height: 100px;
+    background: #0a0f1d;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    overflow: auto;
+    border-top: 1px solid #1f2a44;
+}
+
+button {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    margin: 2px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+.file {
+    padding: 6px;
+    margin: 3px 0;
+    background: #1b2a4a;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.file:hover {
+    background: #2a3a5a;
+}
+
+.file.active {
+    background: #2563eb;
+}
+
+#suggestions {
+    background: #0f172a;
+    padding: 5px;
+    max-height: 100px;
+    overflow-y: auto;
 }
 
 #suggestions div {
-    background:#1e293b;
-    margin:2px;
-    padding:4px;
-    cursor:pointer;
+    background: #1e293b;
+    margin: 2px;
+    padding: 4px 6px;
+    cursor: pointer;
+    border-left: 2px solid #7c3aed;
+}
+
+#suggestions div:hover {
+    background: #2a3a5a;
 }
 
 /* FORGE AI STYLES */
 #forgeAiButton {
-    background:#7c3aed;
-    padding:8px 12px;
-    margin:5px 0;
-    font-weight:bold;
-    transition:all 0.3s;
+    background: #7c3aed;
+    padding: 8px 12px;
+    font-weight: bold;
 }
 
 #forgeAiButton:hover {
-    background:#6d28d9;
+    background: #6d28d9;
 }
 
 #forgeAiButton.active {
-    background:#a78bfa;
+    background: #a78bfa;
 }
 
 #forgeAiPanel {
-    display:none;
-    position:absolute;
-    right:0;
-    top:0;
-    width:300px;
-    height:100%;
-    background:#0f172a;
-    border-left:2px solid #7c3aed;
-    z-index:10;
-    flex-direction:column;
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 280px;
+    height: 100%;
+    background: #0f172a;
+    border-left: 2px solid #7c3aed;
+    z-index: 10;
+    flex-direction: column;
+    box-shadow: -2px 0 10px rgba(124, 58, 237, 0.2);
 }
 
 #forgeAiPanel.open {
-    display:flex;
+    display: flex;
 }
 
 #forgeAiPanel h3 {
-    margin:10px 10px 5px 10px;
-    color:#a78bfa;
-    border-bottom:1px solid #7c3aed;
-    padding-bottom:5px;
+    margin: 10px 10px 5px 10px;
+    color: #a78bfa;
+    border-bottom: 1px solid #7c3aed;
+    padding-bottom: 5px;
+    font-size: 14px;
 }
 
 #forgeAiPanel .ai-section {
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    padding:10px;
-    border-bottom:1px solid #1f2a44;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-bottom: 1px solid #1f2a44;
 }
 
 #forgeAiPrompt {
-    flex:1;
-    background:#0a0f1d;
-    color:#fff;
-    border:1px solid #1f2a44;
-    padding:8px;
-    font-family:monospace;
-    font-size:12px;
-    resize:none;
-    margin-bottom:8px;
+    flex: 1;
+    background: #0a0f1d;
+    color: #fff;
+    border: 1px solid #1f2a44;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    resize: none;
+    margin-bottom: 8px;
+    min-height: 80px;
 }
 
 #forgeAiResponse {
-    flex:1;
-    background:#0a0f1d;
-    color:#22c55e;
-    border:1px solid #1f2a44;
-    padding:8px;
-    font-family:monospace;
-    font-size:11px;
-    overflow:auto;
-    margin-bottom:8px;
+    flex: 1;
+    background: #0a0f1d;
+    color: #22c55e;
+    border: 1px solid #1f2a44;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    overflow: auto;
+    margin-bottom: 8px;
+    min-height: 80px;
 }
 
 .ai-actions {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:5px;
-    margin:5px 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
 }
 
 .ai-action-btn {
-    padding:8px 6px;
-    font-size:12px;
-    background:#1e293b;
-    color:#7c3aed;
-    border:1px solid #7c3aed;
-    cursor:pointer;
-    transition:all 0.2s;
+    padding: 6px;
+    font-size: 11px;
+    background: #1e293b;
+    color: #7c3aed;
+    border: 1px solid #7c3aed;
+    cursor: pointer;
 }
 
 .ai-action-btn:hover {
-    background:#7c3aed;
-    color:white;
+    background: #7c3aed;
+    color: white;
 }
 
 #forgeAiClose {
-    position:absolute;
-    top:10px;
-    right:10px;
-    background:#7c3aed;
-    border:none;
-    color:white;
-    width:24px;
-    height:24px;
-    padding:0;
-    cursor:pointer;
-    font-size:16px;
-    line-height:1;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #7c3aed;
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 3px;
+}
+
+#forgeAiClose:hover {
+    background: #6d28d9;
 }
 
 .loading {
-    opacity:0.6;
-    cursor:not-allowed;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-.loading::after {
-    content:" ...";
-    animation:dots 1.5s infinite;
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
 }
 
-@keyframes dots {
-    0%, 20% { content:" "; }
-    40% { content:"."; }
-    60% { content:".."; }
-    80%, 100% { content:"..."; }
+.status-idle {
+    background: #ef4444;
 }
 
-#editorWrap {
-    position:relative;
-    flex:1;
+.status-running {
+    background: #22c55e;
+    animation: pulse 1s infinite;
 }
 
-#editorWrap.ai-open {
-    margin-right:300px;
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+h3 {
+    margin-bottom: 10px;
+    color: #a78bfa;
+    border-bottom: 1px solid #1f2a44;
+    padding-bottom: 8px;
+}
+
+label {
+    display: block;
+    font-size: 12px;
+    margin: 5px 0;
+    color: #cbd5e1;
+}
+
+input[type="text"],
+input[type="number"] {
+    width: 100%;
+    padding: 4px;
+    margin: 3px 0;
+    background: #0a0f1d;
+    border: 1px solid #1f2a44;
+    color: white;
+    border-radius: 3px;
+}
+
+#objList {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.obj-item {
+    padding: 6px;
+    margin: 3px 0;
+    background: #1b2a4a;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.obj-item:hover {
+    background: #2a3a5a;
+}
+
+.obj-item.selected {
+    background: #2563eb;
+    border-left: 3px solid #7c3aed;
 }
 </style>
+
 </head>
 
 <body>
 
 <div id="app">
 
-<!-- FILES -->
-<div id="left" class="panel">
-<h3>Files</h3>
-<button onclick="newFile()">New</button>
-<button onclick="saveProject()">Save</button>
-<button onclick="loadProject()">Load</button>
-<button id="forgeAiButton" onclick="toggleForgeAiPanel()">🤖 Forge AI</button>
-<div id="files"></div>
-</div>
+    <!-- LEFT PANEL: FILES & OBJECTS -->
+    <div id="left" class="panel">
+        <h3>📁 Files</h3>
+        <button onclick="newFile()" style="width: calc(100% - 4px);">+ New File</button>
+        <button onclick="saveProject()" style="width: calc(100% - 4px);">💾 Save</button>
+        <button onclick="loadProject()" style="width: calc(100% - 4px);">📂 Load</button>
+        <button id="forgeAiButton" onclick="toggleForgeAiPanel()" style="width: calc(100% - 4px);">🤖 Forge AI</button>
+        <div id="files"></div>
 
-<!-- CENTER -->
-<div id="center" class="panel">
+        <hr style="margin: 15px 0; border: none; border-top: 1px solid #1f2a44;">
 
-<div style="padding:6px;background:#111a2e;">
-<button onclick="run()">Run</button>
-<button onclick="step()">Step</button>
-</div>
-
-<div id="editorWrap">
-    <div id="highlight"></div>
-    <textarea id="code"></textarea>
-    
-    <!-- FORGE AI PANEL -->
-    <div id="forgeAiPanel">
-        <button id="forgeAiClose" onclick="toggleForgeAiPanel()">✕</button>
-        
-        <h3>Forge AI</h3>
-        
-        <div class="ai-section">
-            <label style="font-size:12px; margin-bottom:5px;">Your Prompt:</label>
-            <textarea id="forgeAiPrompt" placeholder="Ask AI to modify, explain, or generate code..."></textarea>
-            <button onclick="forgeAI.sendPrompt()" style="background:#7c3aed; width:100%;">Send to AI</button>
-        </div>
-        
-        <div class="ai-section">
-            <label style="font-size:12px; margin-bottom:5px;">AI Response:</label>
-            <div id="forgeAiResponse">Ready for AI responses...</div>
-        </div>
-        
-        <div style="padding:10px; border-top:1px solid #1f2a44;">
-            <label style="font-size:12px; display:block; margin-bottom:8px;">Quick Actions:</label>
-            <div class="ai-actions">
-                <button class="ai-action-btn" onclick="forgeAI.fixCode()">Fix Code</button>
-                <button class="ai-action-btn" onclick="forgeAI.explainCode()">Explain</button>
-                <button class="ai-action-btn" onclick="forgeAI.optimizeCode()">Optimize</button>
-                <button class="ai-action-btn" onclick="forgeAI.insertGenerated()">Insert Gen</button>
-            </div>
-        </div>
+        <h3>🎮 Objects</h3>
+        <button onclick="addObject()" style="width: calc(100% - 4px);">+ Add Object</button>
+        <button onclick="removeObject()" style="width: calc(100% - 4px); background: #ef4444;">🗑️ Remove</button>
+        <div id="objList"></div>
     </div>
-</div>
 
-<div id="output">Output...</div>
-<div id="suggestions"></div>
-</div>
+    <!-- CENTER PANEL: EDITOR & GAME -->
+    <div id="center" class="panel">
+        <div class="toolbar">
+            <button onclick="run()" title="Run code (Ctrl+Enter)">▶️ Run</button>
+            <button onclick="step()" title="Step through execution">⏭️ Step</button>
+            <button onclick="play()" title="Start game loop">▶️ Play</button>
+            <button onclick="stop()" title="Stop game loop">⏹️ Stop</button>
+            <button onclick="clearObjects()" title="Clear all objects" style="background: #ef4444;">Clear All</button>
+            <span style="margin-left: auto; display: flex; align-items: center;">
+                <span class="status-indicator status-idle" id="statusIndicator"></span>
+                <span id="statusText">Ready</span>
+            </span>
+        </div>
 
-<!-- RIGHT -->
-<div id="right" class="panel">
-<h3>Debug</h3>
-<button onclick="mode='assist'">Assist</button>
-<button onclick="mode='plan'">Plan</button>
-<button onclick="ai()">Run</button>
+        <div id="editorContainer">
+            <div id="editorWrap">
+                <div id="highlight"></div>
+                <textarea id="code" placeholder="Write your Forge script here..."></textarea>
+                
+                <!-- FORGE AI PANEL -->
+                <div id="forgeAiPanel">
+                    <button id="forgeAiClose" onclick="toggleForgeAiPanel()">✕</button>
+                    <h3 style="margin-top: 35px;">Forge AI</h3>
+                    
+                    <div class="ai-section">
+                        <label>Your Prompt:</label>
+                        <textarea id="forgeAiPrompt" placeholder="Ask AI to modify, explain, or generate code..."></textarea>
+                        <button onclick="forgeAI.sendPrompt()" style="background: #7c3aed; width: 100%; margin-top: 5px;">Send to AI</button>
+                    </div>
+                    
+                    <div class="ai-section">
+                        <label>AI Response:</label>
+                        <div id="forgeAiResponse">Ready for AI responses...</div>
+                    </div>
+                    
+                    <div style="padding: 10px; border-top: 1px solid #1f2a44;">
+                        <label>Quick Actions:</label>
+                        <div class="ai-actions">
+                            <button class="ai-action-btn" onclick="forgeAI.fixCode()">🔧 Fix</button>
+                            <button class="ai-action-btn" onclick="forgeAI.explainCode()">📖 Explain</button>
+                            <button class="ai-action-btn" onclick="forgeAI.optimizeCode()">⚡ Optimize</button>
+                            <button class="ai-action-btn" onclick="forgeAI.insertGenerated()">📝 Insert</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-<pre id="ai"></pre>
-<pre id="debug"></pre>
-</div>
+            <canvas id="gameCanvas" width="600" height="500"></canvas>
+        </div>
+
+        <div id="output">Output: Ready...</div>
+        <div id="suggestions"></div>
+    </div>
+
+    <!-- RIGHT PANEL: DEBUG & PROPERTIES -->
+    <div id="right" class="panel">
+        <h3>🔍 Debug</h3>
+        <button onclick="toggleDebugMode()" style="width: calc(100% - 4px);">Toggle Debug</button>
+        <div id="debugInfo"></div>
+
+        <h3 style="margin-top: 15px;">⚙️ Object Properties</h3>
+        <div id="objProperties"></div>
+
+        <hr style="margin: 15px 0; border: none; border-top: 1px solid #1f2a44;">
+
+        <h3>📊 Variables</h3>
+        <pre id="debug" style="font-size: 11px; background: #0a0f1d; padding: 8px; border-radius: 3px; overflow: auto; max-height: 200px;"></pre>
+    </div>
 
 </div>
 
 <script src="ai-plugin.js"></script>
+<script src="script.js"></script>
+
 <script>
 
-/* ================= SAFE STATE ================= */
-let files = {"main.fg":"print \"Hello Forge\""};
+/* ================= STATE ================= */
+let files = {"main.fg": "print \"Hello Forge\""};
 let current = "main.fg";
-
 let vars = {};
-let mode = "assist";
 let astCache = [];
 let stepIndex = 0;
+let debugMode = false;
+let objects = [];
+let selected = null;
+let running = false;
+let scripts = new Map();
 
-/* ================= KEYWORDS ================= */
-const keywords = ["print","set","add","loop","if","fn"];
+let canvas = document.getElementById("gameCanvas");
+let ctx = canvas.getContext("2d");
+
+/* ================= KEYWORDS & COLORS ================= */
+const keywords = ["print", "set", "add", "loop", "if", "fn", "move", "color"];
+const colorScheme = {
+    brace: "#60a5fa",
+    string: "#22c55e",
+    number: "#f59e0b",
+    keyword: "#a855f7",
+    identifier: "#ef4444",
+    default: "#cbd5e1"
+};
 
 /* ================= FILE SYSTEM ================= */
-function renderFiles(){
+function renderFiles() {
     let f = document.getElementById("files");
     f.innerHTML = "";
-
-    Object.keys(files).forEach(n=>{
+    
+    Object.keys(files).forEach(n => {
         let d = document.createElement("div");
-        d.className = "file";
+        d.className = "file" + (current === n ? " active" : "");
         d.innerText = n;
         d.onclick = () => loadFile(n);
         f.appendChild(d);
     });
 }
-renderFiles();
 
-function loadFile(n){
+function loadFile(n) {
     current = n;
     document.getElementById("code").value = files[n];
     updateHighlight();
-}
-
-function newFile(){
-    let n = prompt("filename");
-    if(!n) return;
-    files[n] = "print \"new file\"";
     renderFiles();
 }
 
-/* ================= SAVE / LOAD ================= */
-function saveProject(){
-    localStorage.setItem("forge", JSON.stringify(files));
+function newFile() {
+    let n = prompt("Filename (e.g., script.fg):");
+    if (!n) return;
+    if (files[n]) {
+        alert("File already exists!");
+        return;
+    }
+    files[n] = "print \"new file\"";
+    renderFiles();
+    loadFile(n);
 }
 
-function loadProject(){
+/* ================= SAVE / LOAD ================= */
+function saveProject() {
+    files[current] = document.getElementById("code").value;
+    localStorage.setItem("forge", JSON.stringify(files));
+    updateStatus("Project saved!", "success");
+}
+
+function loadProject() {
     let d = localStorage.getItem("forge");
-    if(d){
+    if (d) {
         files = JSON.parse(d);
         renderFiles();
+        if (files[current]) {
+            loadFile(current);
+        }
+        updateStatus("Project loaded!", "success");
+    } else {
+        alert("No saved project found!");
     }
 }
 
-/* ================= TOKENIZER (SOURCE OF TRUTH) ================= */
-function tokenize(code){
+/* ================= TOKENIZER ================= */
+function tokenize(code) {
     return code
-        .replace(/\{/g," { ")
-        .replace(/\}/g," } ")
-        .replace(/"/g,' " ')
+        .replace(/\{/g, " { ")
+        .replace(/\}/g, " } ")
+        .replace(/"/g, ' " ')
         .split(/\s+/)
         .filter(Boolean);
 }
 
-/* ================= SAFE HIGHLIGHT ================= */
-function updateHighlight(){
+/* ================= SYNTAX HIGHLIGHTING ================= */
+function updateHighlight() {
     let t = tokenize(document.getElementById("code").value);
-
-    document.getElementById("highlight").innerHTML =
-    t.map(x=>{
-
-        if(x==="{"||x==="}") return `<span style="color:#60a5fa">${x}</span>`;
-        if(x==='"') return `<span style="color:#22c55e">"</span>`;
-        if(/^\d+$/.test(x)) return `<span style="color:#f59e0b">${x}</span>`;
-        if(keywords.includes(x)) return `<span style="color:#a855f7">${x}</span>`;
-        if(/^[a-zA-Z_]/.test(x)) return `<span style="color:#ef4444">${x}</span>`;
-
-        return x;
-
+    
+    document.getElementById("highlight").innerHTML = t.map(x => {
+        if (x === "{" || x === "}") 
+            return `<span style="color:${colorScheme.brace}">${x}</span>`;
+        if (x === '"') 
+            return `<span style="color:${colorScheme.string}">"</span>`;
+        if (/^\d+$/.test(x)) 
+            return `<span style="color:${colorScheme.number}">${x}</span>`;
+        if (keywords.includes(x)) 
+            return `<span style="color:${colorScheme.keyword}">${x}</span>`;
+        if (/^[a-zA-Z_]/.test(x)) 
+            return `<span style="color:${colorScheme.identifier}">${x}</span>`;
+        
+        return `<span style="color:${colorScheme.default}">${x}</span>`;
     }).join(" ");
 }
 
 /* ================= PARSER ================= */
-function parse(t){
+function parse(t) {
     let i = 0;
-
-    function walk(){
+    
+    function walk() {
         let out = [];
-
-        while(i < t.length){
+        
+        while (i < t.length) {
             let x = t[i];
-
-            if(x === "print"){
-                out.push({type:"print", value:t[++i]});
+            
+            if (x === "print") {
+                out.push({type: "print", value: t[++i]});
                 i++;
             }
-
-            else if(x === "set"){
+            else if (x === "set") {
                 let n = t[++i]; i++;
                 let v = Number(t[++i]);
-                out.push({type:"set", name:n, value:v});
+                out.push({type: "set", name: n, value: v});
                 i++;
             }
-
-            else if(x === "add"){
+            else if (x === "add") {
                 let n = t[++i];
                 let v = Number(t[++i]);
-                out.push({type:"add", name:n, value:v});
+                out.push({type: "add", name: n, value: v});
                 i++;
             }
-
-            else if(x === "loop"){
+            else if (x === "loop") {
                 let c = Number(t[++i]);
                 i++;
                 let body = walk();
-                out.push({type:"loop", count:c, body});
+                out.push({type: "loop", count: c, body});
             }
-
-            else if(x === "}"){
+            else if (x === "}") {
                 i++;
                 return out;
             }
-
             else {
                 i++;
             }
         }
-
+        
         return out;
     }
-
+    
     return walk();
 }
 
 /* ================= VM ================= */
-function runAST(ast, out){
-
-    for(let n of ast){
-
-        if(n.type === "print"){
-            out.push(String(n.value).replace(/"/g,""));
+function runAST(ast, out) {
+    for (let n of ast) {
+        if (n.type === "print") {
+            out.push(String(n.value).replace(/"/g, ""));
         }
-
-        if(n.type === "set"){
+        
+        if (n.type === "set") {
             vars[n.name] = n.value;
         }
-
-        if(n.type === "add"){
+        
+        if (n.type === "add") {
             vars[n.name] = (vars[n.name] || 0) + n.value;
         }
-
-        if(n.type === "loop"){
-            for(let i=0;i<n.count;i++){
+        
+        if (n.type === "loop") {
+            for (let i = 0; i < n.count; i++) {
                 runAST(n.body, out);
             }
         }
     }
 }
 
-/* ================= RUN ================= */
-function run(){
+/* ================= RUN SCRIPT ================= */
+function run() {
+    files[current] = document.getElementById("code").value;
     vars = {};
     stepIndex = 0;
-
-    let tokens = tokenize(document.getElementById("code").value);
-    astCache = parse(tokens);
-
-    let out = [];
-    runAST(astCache, out);
-
-    document.getElementById("output").innerText = out.join("\n");
-    document.getElementById("debug").innerText =
-        JSON.stringify(vars, null, 2);
-}
-
-/* ================= STEP (SAFE PLACEHOLDER) ================= */
-function step(){
-    document.getElementById("debug").innerText =
-        "Step system stable placeholder (next upgrade: real VM stepping)";
-}
-
-/* ================= AUTOCOMPLETE ================= */
-document.getElementById("code").addEventListener("input", e=>{
-    updateHighlight();
-
-    let last = e.target.value.split(/\s+/).pop();
-    let s = keywords.filter(k => k.startsWith(last));
-
-    document.getElementById("suggestions").innerHTML =
-        s.map(x=>`<div>${x}</div>`).join("");
-});
-
-/* ================= FORGE AI PANEL TOGGLE ================= */
-function toggleForgeAiPanel(){
-    let panel = document.getElementById("forgeAiPanel");
-    let btn = document.getElementById("forgeAiButton");
-    let wrap = document.getElementById("editorWrap");
     
-    panel.classList.toggle("open");
-    btn.classList.toggle("active");
-    wrap.classList.toggle("ai-open");
-}
-
-/* ================= AI (LEGACY) ================= */
-function ai(){
-    let t = parse(tokenize(document.getElementById("code").value));
-
-    if(mode === "assist"){
-        document.getElementById("ai").innerText =
-            "ASSIST:\nAST nodes: " + t.length;
-    } else {
-        document.getElementById("ai").innerText =
-            "PLAN:\nSystem flow: tokenizer → parser → VM → output";
+    try {
+        let tokens = tokenize(document.getElementById("code").value);
+        astCache = parse(tokens);
+        
+        let out = [];
+        runAST(astCache, out);
+        
+        document.getElementById("output").innerText = out.length > 0 ? out.join("\n") : "Program executed successfully.";
+        document.getElementById("debug").innerText = JSON.stringify(vars, null, 2);
+        updateStatus("Code executed!", "success");
+    } catch (e) {
+        document.getElementById("output").innerText = `Error: ${e.message}`;
+        updateStatus("Execution error!", "error");
     }
 }
 
-/* INIT */
-updateHighlight();
+/* ================= STEP EXECUTION ================= */
+function step() {
+    updateStatus("Step execution - feature coming soon!", "info");
+}
+
+/* ================= GAME LOOP ================= */
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#050a14";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    for (let o of objects) {
+        if (running) runGameScript(o);
+        
+        // Draw object
+        ctx.fillStyle = o.color;
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+        
+        // Draw selection highlight
+        if (selected && selected.id === o.id) {
+            ctx.strokeStyle = "#7c3aed";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(o.x - 2, o.y - 2, o.w + 4, o.h + 4);
+        }
+    }
+    
+    if (debugMode) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        objects.forEach((o, i) => {
+            ctx.fillText(`${i}`, o.x + 5, o.y + 15);
+        });
+    }
+}
+
+function gameLoop() {
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+/* ================= GAME OBJECT MANAGEMENT ================= */
+function addObject() {
+    let obj = {
+        id: crypto.randomUUID(),
+        x: 100,
+        y: 100,
+        w: 50,
+        h: 50,
+        color: "#3b82f6",
+        vx: 0,
+        vy: 0
+    };
+    
+    objects.push(obj);
+    selected = obj;
+    renderObjectList();
+    updateStatus(`Object added (total: ${objects.length})`, "success");
+}
+
+function removeObject() {
+    if (!selected) {
+        alert("Select an object first!");
+        return;
+    }
+    
+    objects = objects.filter(o => o.id !== selected.id);
+    selected = null;
+    renderObjectList();
+    updateStatus("Object removed", "success");
+}
+
+function clearObjects() {
+    if (confirm("Clear all objects?")) {
+        objects = [];
+        selected = null;
+        scripts.clear();
+        renderObjectList();
+        updateStatus("All objects cleared", "success");
+    }
+}
+
+function renderObjectList() {
+    let el = document.getElementById("objList");
+    el.innerHTML = "";
+    
+    objects.forEach((o, i) => {
+        let d = document.createElement("div");
+        d.className = "obj-item" + (selected && selected.id === o.id ? " selected" : "");
+        d.innerText = `Object ${i} (${o.w}x${o.h})`;
+        d.onclick = () => {
+            selected = o;
+            renderObjectList();
+            renderObjectProperties();
+        };
+        el.appendChild(d);
+    });
+}
+
+function renderObjectProperties() {
+    if (!selected) {
+        document.getElementById("objProperties").innerHTML = "<p style='color: #666; font-size: 12px;'>No object selected</p>";
+        return;
+    }
+    
+    let html = `
+        <label>X: <input type="number" value="${selected.x}" onchange="selected.x = Number(this.value)"></label>
+        <label>Y: <input type="number" value="${selected.y}" onchange="selected.y = Number(this.value)"></label>
+        <label>Width: <input type="number" value="${selected.w}" onchange="selected.w = Number(this.value)"></label>
+        <label>Height: <input type="number" value="${selected.h}" onchange="selected.h = Number(this.value)"></label>
+        <label>Color: <input type="text" value="${selected.color}" onchange="selected.color = this.value"></label>
+        <button onclick="attachScript()" style="width: calc(100% - 4px); margin-top: 10px;">Attach Script</button>
+    `;
+    
+    document.getElementById("objProperties").innerHTML = html;
+}
+
+function attachScript() {
+    if (!selected) return;
+    
+    let code = document.getElementById("code").value;
+    scripts.set(selected.id, code);
+    updateStatus("Script attached to object", "success");
+}
+
+function runGameScript(obj) {
+    let code = scripts.get(obj.id);
+    if (!code) return;
+    
+    try {
+        let lines = code.split("\n");
+        
+        for (let line of lines) {
+            let p = line.trim().split(/\s+/);
+            
+            if (p[0] === "move" && p[1] === "x") {
+                obj.x += Number(p[2]) || 0;
+            }
+            if (p[0] === "move" && p[1] === "y") {
+                obj.y += Number(p[2]) || 0;
+            }
+            if (p[0] === "set" && p[1] === "color") {
+                obj.color = p[2] || "#fff";
+            }
+            if (p[0] === "rotate") {
+                // Placeholder for rotation
+            }
+            if (p[0] === "scale") {
+                obj.w *= Number(p[1]) || 1;
+                obj.h *= Number(p[1]) || 1;
+            }
+        }
+    } catch (e) {
+        console.error("Script error:", e);
+    }
+}
+
+/* ================= PLAY / STOP ================= */
+function play() {
+    running = true;
+    document.getElementById("statusIndicator").className = "status-indicator status-running";
+    document.getElementById("statusText").innerText = "Running";
+    updateStatus("Game running", "success");
+}
+
+function stop() {
+    running = false;
+    document.getElementById("statusIndicator").className = "status-indicator status-idle";
+    document.getElementById("statusText").innerText = "Stopped";
+    updateStatus("Game stopped", "info");
+}
+
+/* ================= DEBUG MODE ================= */
+function toggleDebugMode() {
+    debugMode = !debugMode;
+    document.getElementById("debugInfo").innerHTML = debugMode ? 
+        "<p style='color: #22c55e; font-size: 12px;'>Debug mode ON</p>" :
+        "<p style='color: #ef4444; font-size: 12px;'>Debug mode OFF</p>";
+    updateStatus(debugMode ? "Debug mode ON" : "Debug mode OFF", "info");
+}
+
+/* ================= STATUS UPDATES ================= */
+function updateStatus(msg, type = "info") {
+    let el = document.getElementById("output");
+    let prefix = type === "success" ? "✓" : type === "error" ? "✗" : "ℹ";
+    el.innerText = `${prefix} ${msg}`;
+}
+
+/* ================= AUTOCOMPLETE ================= */
+document.getElementById("code").addEventListener("input", e => {
+    updateHighlight();
+    
+    let last = e.target.value.split(/\s+/).pop();
+    let s = keywords.filter(k => k.startsWith(last));
+    
+    document.getElementById("suggestions").innerHTML = s.map(x => 
+        `<div onclick="insertKeyword('${x}')">${x}</div>`
+    ).join("");
+});
+
+function insertKeyword(kw) {
+    let ta = document.getElementById("code");
+    let pos = ta.selectionStart;
+    let val = ta.value;
+    let last = val.substring(0, pos).split(/\s+/).pop();
+    
+    ta.value = val.substring(0, pos - last.length) + kw + val.substring(pos);
+    ta.selectionStart = pos - last.length + kw.length;
+    ta.focus();
+    updateHighlight();
+}
+
+/* ================= FORGE AI PANEL ================= */
+function toggleForgeAiPanel() {
+    let panel = document.getElementById("forgeAiPanel");
+    let btn = document.getElementById("forgeAiButton");
+    
+    panel.classList.toggle("open");
+    btn.classList.toggle("active");
+}
+
+/* ================= INIT ================= */
 renderFiles();
+renderObjectList();
+loadFile(current);
+updateStatus("Forge Studio ready!", "success");
 
 </script>
 
