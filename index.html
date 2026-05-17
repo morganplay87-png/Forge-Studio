@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Forge IDE V7 (Stable)</title>
+
+<style>
+body {
+    margin:0;
+    font-family:Arial;
+    background:#0b1220;
+    color:white;
+    overflow:hidden;
+}
+
+#app {
+    display:flex;
+    height:100vh;
+}
+
+.panel {
+    background:#0f172a;
+    border:1px solid #1f2a44;
+    overflow:auto;
+}
+
+#left { width:220px; padding:10px; }
+#center { flex:1; display:flex; flex-direction:column; }
+#right { width:260px; padding:10px; }
+
+#editorWrap {
+    position:relative;
+    flex:1;
+}
+
+/* SAFE HIGHLIGHT LAYER */
+#highlight {
+    position:absolute;
+    width:100%;
+    height:100%;
+    padding:10px;
+    font-family:monospace;
+    background:#0a0f1d;
+    white-space:pre-wrap;
+    overflow:auto;
+    z-index:1;
+}
+
+textarea {
+    position:absolute;
+    width:100%;
+    height:100%;
+    padding:10px;
+    font-family:monospace;
+    background:transparent;
+    color:transparent;
+    caret-color:white;
+    border:none;
+    outline:none;
+    z-index:2;
+}
+
+button {
+    background:#2563eb;
+    color:white;
+    border:none;
+    padding:6px;
+    margin:2px;
+    cursor:pointer;
+}
+
+.file {
+    padding:6px;
+    margin:3px;
+    background:#1b2a4a;
+    cursor:pointer;
+}
+
+#output {
+    height:120px;
+    background:#0a0f1d;
+    padding:8px;
+    font-family:monospace;
+    overflow:auto;
+}
+
+#suggestions div {
+    background:#1e293b;
+    margin:2px;
+    padding:4px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+<!-- FILES -->
+<div id="left" class="panel">
+<h3>Files</h3>
+<button onclick="newFile()">New</button>
+<button onclick="saveProject()">Save</button>
+<button onclick="loadProject()">Load</button>
+<div id="files"></div>
+</div>
+
+<!-- CENTER -->
+<div id="center" class="panel">
+
+<div style="padding:6px;background:#111a2e;">
+<button onclick="run()">Run</button>
+<button onclick="step()">Step</button>
+</div>
+
+<div id="editorWrap">
+    <div id="highlight"></div>
+    <textarea id="code"></textarea>
+</div>
+
+<div id="output">Output...</div>
+<div id="suggestions"></div>
+</div>
+
+<!-- RIGHT -->
+<div id="right" class="panel">
+<h3>AI</h3>
+<button onclick="mode='assist'">Assist</button>
+<button onclick="mode='plan'">Plan</button>
+<button onclick="ai()">Run</button>
+
+<pre id="ai"></pre>
+<pre id="debug"></pre>
+</div>
+
+</div>
+
+<script>
+
+/* ================= SAFE STATE ================= */
+let files = {"main.fg":"print \"Hello Forge\""};
+let current = "main.fg";
+
+let vars = {};
+let mode = "assist";
+let astCache = [];
+let stepIndex = 0;
+
+/* ================= KEYWORDS ================= */
+const keywords = ["print","set","add","loop","if","fn"];
+
+/* ================= FILE SYSTEM ================= */
+function renderFiles(){
+    let f = document.getElementById("files");
+    f.innerHTML = "";
+
+    Object.keys(files).forEach(n=>{
+        let d = document.createElement("div");
+        d.className = "file";
+        d.innerText = n;
+        d.onclick = () => loadFile(n);
+        f.appendChild(d);
+    });
+}
+renderFiles();
+
+function loadFile(n){
+    current = n;
+    document.getElementById("code").value = files[n];
+    updateHighlight();
+}
+
+function newFile(){
+    let n = prompt("filename");
+    if(!n) return;
+    files[n] = "print \"new file\"";
+    renderFiles();
+}
+
+/* ================= SAVE / LOAD ================= */
+function saveProject(){
+    localStorage.setItem("forge", JSON.stringify(files));
+}
+
+function loadProject(){
+    let d = localStorage.getItem("forge");
+    if(d){
+        files = JSON.parse(d);
+        renderFiles();
+    }
+}
+
+/* ================= TOKENIZER (SOURCE OF TRUTH) ================= */
+function tokenize(code){
+    return code
+        .replace(/\{/g," { ")
+        .replace(/\}/g," } ")
+        .replace(/"/g,' " ')
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
+/* ================= SAFE HIGHLIGHT ================= */
+function updateHighlight(){
+    let t = tokenize(document.getElementById("code").value);
+
+    document.getElementById("highlight").innerHTML =
+    t.map(x=>{
+
+        if(x==="{"||x==="}") return `<span style="color:#60a5fa">${x}</span>`;
+        if(x==='"') return `<span style="color:#22c55e">"</span>`;
+        if(/^\d+$/.test(x)) return `<span style="color:#f59e0b">${x}</span>`;
+        if(keywords.includes(x)) return `<span style="color:#a855f7">${x}</span>`;
+        if(/^[a-zA-Z_]/.test(x)) return `<span style="color:#ef4444">${x}</span>`;
+
+        return x;
+
+    }).join(" ");
+}
+
+/* ================= PARSER ================= */
+function parse(t){
+    let i = 0;
+
+    function walk(){
+        let out = [];
+
+        while(i < t.length){
+            let x = t[i];
+
+            if(x === "print"){
+                out.push({type:"print", value:t[++i]});
+                i++;
+            }
+
+            else if(x === "set"){
+                let n = t[++i]; i++;
+                let v = Number(t[++i]);
+                out.push({type:"set", name:n, value:v});
+                i++;
+            }
+
+            else if(x === "add"){
+                let n = t[++i];
+                let v = Number(t[++i]);
+                out.push({type:"add", name:n, value:v});
+                i++;
+            }
+
+            else if(x === "loop"){
+                let c = Number(t[++i]);
+                i++;
+                let body = walk();
+                out.push({type:"loop", count:c, body});
+            }
+
+            else if(x === "}"){
+                i++;
+                return out;
+            }
+
+            else {
+                i++;
+            }
+        }
+
+        return out;
+    }
+
+    return walk();
+}
+
+/* ================= VM ================= */
+function runAST(ast, out){
+
+    for(let n of ast){
+
+        if(n.type === "print"){
+            out.push(String(n.value).replace(/"/g,""));
+        }
+
+        if(n.type === "set"){
+            vars[n.name] = n.value;
+        }
+
+        if(n.type === "add"){
+            vars[n.name] = (vars[n.name] || 0) + n.value;
+        }
+
+        if(n.type === "loop"){
+            for(let i=0;i<n.count;i++){
+                runAST(n.body, out);
+            }
+        }
+    }
+}
+
+/* ================= RUN ================= */
+function run(){
+    vars = {};
+    stepIndex = 0;
+
+    let tokens = tokenize(document.getElementById("code").value);
+    astCache = parse(tokens);
+
+    let out = [];
+    runAST(astCache, out);
+
+    document.getElementById("output").innerText = out.join("\n");
+    document.getElementById("debug").innerText =
+        JSON.stringify(vars, null, 2);
+}
+
+/* ================= STEP (SAFE PLACEHOLDER) ================= */
+function step(){
+    document.getElementById("debug").innerText =
+        "Step system stable placeholder (next upgrade: real VM stepping)";
+}
+
+/* ================= AUTOCOMPLETE ================= */
+document.getElementById("code").addEventListener("input", e=>{
+    updateHighlight();
+
+    let last = e.target.value.split(/\s+/).pop();
+    let s = keywords.filter(k => k.startsWith(last));
+
+    document.getElementById("suggestions").innerHTML =
+        s.map(x=>`<div>${x}</div>`).join("");
+});
+
+/* ================= AI ================= */
+function ai(){
+    let t = parse(tokenize(document.getElementById("code").value));
+
+    if(mode === "assist"){
+        document.getElementById("ai").innerText =
+            "ASSIST:\nAST nodes: " + t.length;
+    } else {
+        document.getElementById("ai").innerText =
+            "PLAN:\nSystem flow: tokenizer → parser → VM → output";
+    }
+}
+
+/* INIT */
+updateHighlight();
+renderFiles();
+
+</script>
+
+</body>
+</html>
