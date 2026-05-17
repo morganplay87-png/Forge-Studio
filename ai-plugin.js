@@ -1,6 +1,6 @@
 /**
  * FORGE AI PLUGIN SYSTEM
- * Full AI integration for code generation, modification, and explanation
+ * AI integration for code generation, modification, and explanation
  */
 
 const forgeAI = {
@@ -10,6 +10,7 @@ const forgeAI = {
     isLoading: false,
     lastResponse: null,
     generatedCode: null,
+    backendAvailable: false,
 
     /* ================= EDITOR API ================= */
     
@@ -18,11 +19,12 @@ const forgeAI = {
      */
     getSelectedText() {
         let textarea = document.getElementById("code");
+        if (!textarea) return "";
+        
         let start = textarea.selectionStart;
         let end = textarea.selectionEnd;
         
         if (start === end) {
-            // No selection, return all text
             return textarea.value;
         }
         
@@ -33,7 +35,8 @@ const forgeAI = {
      * Get all editor text
      */
     getAllText() {
-        return document.getElementById("code").value;
+        let textarea = document.getElementById("code");
+        return textarea ? textarea.value : "";
     },
 
     /**
@@ -41,6 +44,8 @@ const forgeAI = {
      */
     insertText(text) {
         let textarea = document.getElementById("code");
+        if (!textarea) return;
+        
         let cursorPos = textarea.selectionEnd;
         let before = textarea.value.substring(0, cursorPos);
         let after = textarea.value.substring(cursorPos);
@@ -58,11 +63,12 @@ const forgeAI = {
      */
     replaceSelection(text) {
         let textarea = document.getElementById("code");
+        if (!textarea) return;
+        
         let start = textarea.selectionStart;
         let end = textarea.selectionEnd;
         
         if (start === end) {
-            // No selection, replace all
             textarea.value = text;
         } else {
             let before = textarea.value.substring(0, start);
@@ -80,7 +86,10 @@ const forgeAI = {
      * Update response display
      */
     setResponse(text) {
-        document.getElementById("forgeAiResponse").innerText = text;
+        let el = document.getElementById("forgeAiResponse");
+        if (el) {
+            el.innerText = text;
+        }
         this.lastResponse = text;
     },
 
@@ -90,16 +99,32 @@ const forgeAI = {
     setLoading(loading) {
         this.isLoading = loading;
         let btn = document.querySelector("button[onclick='forgeAI.sendPrompt()']");
-        if (loading) {
-            btn.classList.add("loading");
-            btn.disabled = true;
-        } else {
-            btn.classList.remove("loading");
-            btn.disabled = false;
+        if (btn) {
+            if (loading) {
+                btn.classList.add("loading");
+                btn.disabled = true;
+            } else {
+                btn.classList.remove("loading");
+                btn.disabled = false;
+            }
         }
     },
 
     /* ================= BACKEND COMMUNICATION ================= */
+
+    /**
+     * Check backend availability
+     */
+    async checkBackend() {
+        try {
+            const response = await fetch(this.apiUrl, { method: "HEAD" });
+            this.backendAvailable = response.ok;
+            return this.backendAvailable;
+        } catch (e) {
+            this.backendAvailable = false;
+            return false;
+        }
+    },
 
     /**
      * Send request to AI backend
@@ -117,7 +142,8 @@ const forgeAI = {
                 body: JSON.stringify({
                     prompt: prompt,
                     code: code
-                })
+                }),
+                timeout: 30000
             });
 
             if (!response.ok) {
@@ -139,9 +165,18 @@ const forgeAI = {
             return data;
             
         } catch (error) {
-            this.setResponse(`Error: ${error.message}\n\nMake sure backend is running at ${this.apiUrl}`);
+            let errorMsg = `Error: ${error.message}\n\n`;
+            errorMsg += `Backend URL: ${this.apiUrl}\n`;
+            errorMsg += "Make sure backend is running.\n\n";
+            errorMsg += "For now, try these manual prompts:\n";
+            errorMsg += "• Fix: Review code for issues\n";
+            errorMsg += "• Explain: Describe what code does\n";
+            errorMsg += "• Optimize: Improve performance\n";
+            
+            this.setResponse(errorMsg);
             console.error("AI Error:", error);
             return null;
+            
         } finally {
             this.setLoading(false);
         }
@@ -162,7 +197,6 @@ const forgeAI = {
 
         let selectedCode = this.getSelectedText();
         
-        // If no selection, use all text
         if (!selectedCode || selectedCode === this.getAllText()) {
             selectedCode = this.getAllText();
         }
@@ -175,6 +209,11 @@ const forgeAI = {
      */
     async fixCode() {
         let code = this.getSelectedText() || this.getAllText();
+        if (!code.trim()) {
+            this.setResponse("No code to fix");
+            return;
+        }
+        
         let prompt = "Fix any errors or issues in this code. Return the corrected code:";
         
         document.getElementById("forgeAiPrompt").value = prompt;
@@ -186,6 +225,11 @@ const forgeAI = {
      */
     async explainCode() {
         let code = this.getSelectedText() || this.getAllText();
+        if (!code.trim()) {
+            this.setResponse("No code to explain");
+            return;
+        }
+        
         let prompt = "Explain what this code does in simple terms:";
         
         document.getElementById("forgeAiPrompt").value = prompt;
@@ -197,6 +241,11 @@ const forgeAI = {
      */
     async optimizeCode() {
         let code = this.getSelectedText() || this.getAllText();
+        if (!code.trim()) {
+            this.setResponse("No code to optimize");
+            return;
+        }
+        
         let prompt = "Optimize this code for performance and readability. Return the improved code:";
         
         document.getElementById("forgeAiPrompt").value = prompt;
@@ -212,8 +261,10 @@ const forgeAI = {
             return;
         }
 
-        let hasSelection = document.getElementById("code").selectionStart !== 
-                          document.getElementById("code").selectionEnd;
+        let textarea = document.getElementById("code");
+        if (!textarea) return;
+        
+        let hasSelection = textarea.selectionStart !== textarea.selectionEnd;
 
         if (hasSelection) {
             this.replaceSelection(this.generatedCode);
@@ -224,16 +275,47 @@ const forgeAI = {
         }
     },
 
+    /* ================= LOCAL MOCK AI (OFFLINE MODE) ================= */
+    
+    /**
+     * Simple mock AI for offline testing
+     */
+    mockAI(prompt, code) {
+        let response = "";
+        
+        if (prompt.toLowerCase().includes("fix")) {
+            response = `// Fixed version:\n${code}\n\n// Analysis:\n- Code structure is valid\n- No syntax errors detected`;
+        } else if (prompt.toLowerCase().includes("explain")) {
+            response = `This code:\n\n${code}\n\nDoes the following:\n- Processes input data\n- Performs operations\n- Returns results`;
+        } else if (prompt.toLowerCase().includes("optimize")) {
+            response = `// Optimized version:\n${code}\n\n// Improvements:\n- Better variable naming\n- Removed redundancy\n- Improved readability`;
+        } else {
+            response = `Processing prompt: "${prompt}"\n\nCode analyzed:\n${code}`;
+        }
+        
+        return response;
+    },
+
     /* ================= INITIALIZATION ================= */
     
     init() {
-        console.log("Forge AI Plugin initialized");
+        console.log("🤖 Forge AI Plugin initialized");
         console.log("Backend API: " + this.apiUrl);
-        console.log("Editor API ready:");
-        console.log("  - getSelectedText()");
-        console.log("  - getAllText()");
-        console.log("  - insertText(text)");
-        console.log("  - replaceSelection(text)");
+        console.log("Features:");
+        console.log("  ✓ Code generation");
+        console.log("  ✓ Code fixing");
+        console.log("  ✓ Code explanation");
+        console.log("  ✓ Code optimization");
+        console.log("  ✓ Text insertion");
+        
+        // Check backend availability
+        this.checkBackend().then(available => {
+            if (available) {
+                console.log("✓ Backend connected");
+            } else {
+                console.log("⚠ Backend not available (offline mode)");
+            }
+        });
     }
 };
 
@@ -243,10 +325,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Also initialize if script loads after DOM
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        forgeAI.init();
-    });
-} else {
+if (document.readyState !== "loading") {
     forgeAI.init();
 }
