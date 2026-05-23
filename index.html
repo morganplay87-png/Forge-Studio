@@ -187,13 +187,14 @@ button:active {
     position: absolute;
     right: 0;
     top: 0;
-    width: 280px;
+    width: 320px;
     height: 100%;
     background: #0f172a;
     border-left: 2px solid #7c3aed;
     z-index: 10;
     flex-direction: column;
     box-shadow: -2px 0 10px rgba(124, 58, 237, 0.2);
+    overflow: hidden;
 }
 
 #forgeAiPanel.open {
@@ -214,10 +215,11 @@ button:active {
     flex-direction: column;
     padding: 10px;
     border-bottom: 1px solid #1f2a44;
+    overflow: auto;
 }
 
 #forgeAiPrompt {
-    flex: 1;
+    flex: 0.6;
     background: #0a0f1d;
     color: #fff;
     border: 1px solid #1f2a44;
@@ -226,7 +228,7 @@ button:active {
     font-size: 11px;
     resize: none;
     margin-bottom: 8px;
-    min-height: 80px;
+    min-height: 60px;
 }
 
 #forgeAiResponse {
@@ -239,22 +241,28 @@ button:active {
     font-size: 11px;
     overflow: auto;
     margin-bottom: 8px;
-    min-height: 80px;
+}
+
+#forgeAiResponse pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 .ai-actions {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 5px;
 }
 
 .ai-action-btn {
     padding: 6px;
-    font-size: 11px;
+    font-size: 10px;
     background: #1e293b;
     color: #7c3aed;
     border: 1px solid #7c3aed;
     cursor: pointer;
+    border-radius: 3px;
 }
 
 .ai-action-btn:hover {
@@ -356,6 +364,20 @@ input[type="number"] {
     background: #2563eb;
     border-left: 3px solid #7c3aed;
 }
+
+.ai-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 10px;
+    border-bottom: 1px solid #1f2a44;
+}
+
+.ai-toolbar button {
+    padding: 5px;
+    font-size: 10px;
+    margin: 0;
+}
 </style>
 
 </head>
@@ -370,7 +392,7 @@ input[type="number"] {
         <button onclick="newFile()" style="width: calc(100% - 4px);">+ New File</button>
         <button onclick="saveProject()" style="width: calc(100% - 4px);">💾 Save</button>
         <button onclick="loadProject()" style="width: calc(100% - 4px);">📂 Load</button>
-        <button id="forgeAiButton" onclick="toggleForgeAiPanel()" style="width: calc(100% - 4px);">🤖 Forge AI</button>
+        <button id="forgeAiButton" onclick="toggleForgeAiPanel()" style="width: calc(100% - 4px); font-weight: bold;">🤖 AI</button>
         <div id="files"></div>
 
         <hr style="margin: 15px 0; border: none; border-top: 1px solid #1f2a44;">
@@ -398,32 +420,40 @@ input[type="number"] {
         <div id="editorContainer">
             <div id="editorWrap">
                 <div id="highlight"></div>
-                <textarea id="code" placeholder="Write your Forge script here..."></textarea>
+                <textarea id="code" placeholder="Write your Forge script here... (Ctrl+/ for AI)"></textarea>
                 
                 <!-- FORGE AI PANEL -->
                 <div id="forgeAiPanel">
                     <button id="forgeAiClose" onclick="toggleForgeAiPanel()">✕</button>
-                    <h3 style="margin-top: 35px;">Forge AI</h3>
+                    <h3 style="margin-top: 35px;">🤖 Forge AI</h3>
+                    
+                    <div class="ai-toolbar">
+                        <button onclick="forgeAI.fixCode()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">🔧 Fix</button>
+                        <button onclick="forgeAI.explainCode()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">📖 Explain</button>
+                        <button onclick="forgeAI.optimizeCode()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">⚡ Optimize</button>
+                        <button onclick="forgeAI.suggestGameScript()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">🎮 Game</button>
+                    </div>
+
+                    <div class="ai-toolbar" style="padding: 5px 10px;">
+                        <button onclick="forgeAI.generatePhysics()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed; grid-column: 1/3;">⚙️ Physics</button>
+                        <button onclick="forgeAI.suggestMechanics()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">💡 Mechanics</button>
+                        <button onclick="forgeAI.insertGenerated()" class="ai-action-btn" style="color: #fff; background: #1e293b; border: 1px solid #7c3aed;">📝 Insert</button>
+                    </div>
                     
                     <div class="ai-section">
                         <label>Your Prompt:</label>
-                        <textarea id="forgeAiPrompt" placeholder="Ask AI to modify, explain, or generate code..."></textarea>
-                        <button onclick="forgeAI.sendPrompt()" style="background: #7c3aed; width: 100%; margin-top: 5px;">Send to AI</button>
+                        <textarea id="forgeAiPrompt" placeholder="Ask AI anything about game development..."></textarea>
+                        <button onclick="forgeAI.sendPrompt()" style="background: #7c3aed; width: 100%; margin-top: 5px; padding: 8px;">Send to AI</button>
                     </div>
                     
                     <div class="ai-section">
                         <label>AI Response:</label>
-                        <div id="forgeAiResponse">Ready for AI responses...</div>
+                        <div id="forgeAiResponse">Ready to help! Try asking me to fix, explain, or generate code.</div>
                     </div>
                     
-                    <div style="padding: 10px; border-top: 1px solid #1f2a44;">
-                        <label>Quick Actions:</label>
-                        <div class="ai-actions">
-                            <button class="ai-action-btn" onclick="forgeAI.fixCode()">🔧 Fix</button>
-                            <button class="ai-action-btn" onclick="forgeAI.explainCode()">📖 Explain</button>
-                            <button class="ai-action-btn" onclick="forgeAI.optimizeCode()">⚡ Optimize</button>
-                            <button class="ai-action-btn" onclick="forgeAI.insertGenerated()">📝 Insert</button>
-                        </div>
+                    <div style="padding: 8px; border-top: 1px solid #1f2a44; font-size: 11px; color: #888;">
+                        <button onclick="forgeAI.clearHistory()" style="width: 100%; font-size: 10px; padding: 4px; background: #1e293b; color: #7c3aed; border: 1px solid #7c3aed;">Clear History</button>
+                        <button onclick="forgeAI.showStatus()" style="width: 100%; font-size: 10px; padding: 4px; margin-top: 3px; background: #1e293b; color: #7c3aed; border: 1px solid #7c3aed;">AI Status</button>
                     </div>
                 </div>
             </div>
@@ -884,7 +914,7 @@ function toggleForgeAiPanel() {
 renderFiles();
 renderObjectList();
 loadFile(current);
-updateStatus("Forge Studio ready!", "success");
+updateStatus("Forge Studio ready! (Ctrl+/ for AI)", "success");
 
 </script>
 
